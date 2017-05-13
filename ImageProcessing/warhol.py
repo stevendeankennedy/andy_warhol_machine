@@ -5,6 +5,7 @@ import PIL
 from PIL import Image
 import random
 import numpy
+import sys
 
 # picture width used in resizing an image
 # tweak this to adjust size of image
@@ -95,17 +96,43 @@ def warholify(image, colors):
 comm = MPI.COMM_WORLD
 rank = comm.rank
 
+# The parent node loads the image
 if (rank == 0):
-    img = Image.open('soupa.jpg').convert('L')
+    fname = sys.argv[1]
+    # Converts to greyscale and resizes
+    img = Image.open(fname).convert('L')
     img = resizeImage(img)
+    # Converts to numpy array for easy sending
     arr_img = numpy.array(img)
-    comm.send(arr_img, dest=1)
-else:
+    for child in range(1, 4):
+        comm.send(arr_img, dest=child)
+else: # The children load images from the comm network
     arr_img = comm.recv(source=0)
     img = Image.fromarray(arr_img)
-    img.save('test.jpg')
 
+# Everyone does this part
+img_rand = warholify(img, random.choice(COLORS))
 
+# Then time to aggregate the images
+if (rank == 0):
+    # We already have one of the images
+    img0 = img_rand
+    # Receive the other images
+    img1a = comm.recv(source=1)
+    img1 = Image.fromarray(img1a)
+    img2a = comm.recv(source=2)
+    img2 = Image.fromarray(img2a)
+    img3a = comm.recv(source=3)
+    img3 = Image.fromarray(img3a)
+
+    # Aggregate the four images into one
+    img = aggregateImages(img0, img1, img2, img3)
+
+    #Save the Warhol Masterpiece!
+    img.save('warholed.jpg')
+else: # send result
+    arr_img = numpy.array(img)
+    comm.send(arr_img, dest=0)
 
 
   # # Open an image for processing and convert to greyscale
