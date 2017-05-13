@@ -129,9 +129,13 @@ if (rank == 0):
     img = aggregateImages(img0, img1, img2, img3)
 
     #Save the Warhol Masterpiece!
-    img.save('warholed.jpg')
+    img.save('output.jpg')
+    img0.save('0.jpg')
+    img1.save('1.jpg')
+    img2.save('2.jpg')
+    img3.save('3.jpg')
 else: # send result
-    arr_img = numpy.array(img)
+    arr_img = numpy.array(img_rand)
     comm.send(arr_img, dest=0)
 
 
