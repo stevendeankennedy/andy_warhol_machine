@@ -1,0 +1,5 @@
+scp warhol.py pi0:/home/pi/warhol/ImageProcessing/
+scp warhol.py pi1:/home/pi/warhol/ImageProcessing/
+scp warhol.py pi2:/home/pi/warhol/ImageProcessing/
+scp warhol.py pi3:/home/pi/warhol/ImageProcessing/
+

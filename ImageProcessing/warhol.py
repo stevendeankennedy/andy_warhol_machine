@@ -2,7 +2,7 @@
 
 from mpi4py import MPI
 import PIL
-from PIL import Image
+from PIL import Image, ImageFilter, ImageOps, ImageEnhance
 import random
 import numpy
 import sys
@@ -17,17 +17,30 @@ BLK_UPPER_BOUND=105
 WHITE_LOWER_BOUND=145
 
 # color dictionary, fg = foreground, bg = background, og = 'other'ground
+# COLORS = [
+#     {'bg' : (255,255,0), 'fg' : (50,9,125), 'og': (118,192,0)},
+#     {'bg' : (0,122,240), 'fg' : (255,0,112), 'og': (255,255,0)},
+#     {'bg' : (50,0,130),'fg' : (255,0,0),'og': (243,145,192)},
+#     {'bg' : (255,126,0),'fg' : (134,48,149),'og': (111,185,248)},
+#     {'bg' : (255,0,0),'fg' : (35,35,35),'og': (255,255,255)},
+#     {'bg' : (122,192,0),'fg' : (255,89,0),'og': (250,255,160)},
+#     {'bg' : (0,114,100),'fg' : (252,0,116),'og': (250,250,230)},
+#     {'bg' : (250,255,0),'fg' : (254,0,0),'og': (139,198,46)},
+#     {'bg' : (253,0,118),'fg' : (51,2,126),'og': (255,105,0)}
+# ]
 COLORS = [
-    {'bg' : (255,255,0), 'fg' : (50,9,125), 'og': (118,192,0)},
-    {'bg' : (0,122,240), 'fg' : (255,0,112), 'og': (255,255,0)},
-    {'bg' : (50,0,130),'fg' : (255,0,0),'og': (243,145,192)},
-    {'bg' : (255,126,0),'fg' : (134,48,149),'og': (111,185,248)},
-    {'bg' : (255,0,0),'fg' : (35,35,35),'og': (255,255,255)},
-    {'bg' : (122,192,0),'fg' : (255,89,0),'og': (250,255,160)},
-    {'bg' : (0,114,100),'fg' : (252,0,116),'og': (250,250,230)},
-    {'bg' : (250,255,0),'fg' : (254,0,0),'og': (139,198,46)},
-    {'bg' : (253,0,118),'fg' : (51,2,126),'og': (255,105,0)}
+    {'bg' : (50,5,0), 'fg' : (255,255,0), 'og': (118,192,0)}, # yellow
+    {'bg' : (225,102,222 ), 'fg' : (158,222,255), 'og': (255,255,0)}, # bright candy
+    {'bg' : (134,48,149),'fg' : (255,170,0),'og': (111,185,248)}, # orange
+    {'fg' : (255,0,0),'bg' : (10,35,10),'og': (255,255,255)}, # red
+    {'fg' : (122,192,0),'bg' : (255,89,0),'og': (250,255,160)}, # yellowish
+    {'bg' : (0,114,100),'fg' : (252,114,116),'og': (250,250,230)}, # cyan
+    {'fg' : (250,255,0),'bg' : (254,0,0),'og': (139,198,46)}, #red orange
+    {'bg' : (50,0,35),'fg' : (255,2,199),'og': (255,105,0)}, # purple
+    # {'bg' : (50,0,10),'fg' : (215,2,199),'og': (255,105,0)}, # pink
+    {'bg' : (50,0,130),'fg' : (255,0,0),'og': (243,145,192)} # red!
 ]
+
 
 # Resize the width of an image, maintaining aspect ratio of its height
 def resizeImage(image):
@@ -91,17 +104,35 @@ def warholify(image, colors):
 
   return mask
 
+# A different warhol technique, utilizing a posterize filter
+def warholify_b(im, colors):
+  # bits = random.choice([1,2]) # scale of colors
+  bits = 2 # I don't know what is better, 1 or 2
+  im = ImageOps.posterize(im, bits) # posterize on scale
+  im = ImageOps.colorize(im, colors['bg'], colors['fg']) # recolor
+  im = im.filter(ImageFilter.SMOOTH)
+  im = im.filter(ImageFilter.SHARPEN)
+  enhancer = ImageEnhance.Contrast(im)
+  im = enhancer.enhance(1.5)
+  enhancer = ImageEnhance.Brightness(im)
+  im = enhancer.enhance(1.5)
+
+  return im
 
 # warhol machine (cluster) stuff
 comm = MPI.COMM_WORLD
 rank = comm.rank
 
+if len(sys.argv) == 3:
+    WIDTH_SIZE = int(sys.argv[2])
+
 # The parent node loads the image
 if (rank == 0):
     fname = sys.argv[1]
-    # Converts to greyscale and resizes
-    img = Image.open(fname).convert('L')
-    img = resizeImage(img)
+
+    # Load image
+    # img = Image.open(fname).convert('L')
+    img = Image.open(fname)
     # Converts to numpy array for easy sending
     arr_img = numpy.array(img)
     for child in range(1, 4):
@@ -110,8 +141,14 @@ else: # The children load images from the comm network
     arr_img = comm.recv(source=0)
     img = Image.fromarray(arr_img)
 
-# Everyone does this part
-img_rand = warholify(img, random.choice(COLORS))
+# Everyone does this part (Image processing)
+img = img.convert('L') # grayscale
+img = resizeImage(img) # resize
+version = random.choice([1,2])
+if version == 1:
+    img_rand = warholify(img, random.choice(COLORS)) # warhol version 1
+else:
+    img_rand = warholify_b(img, random.choice(COLORS)) # warhol version 2
 
 # Then time to aggregate the images
 if (rank == 0):
@@ -133,20 +170,3 @@ if (rank == 0):
 else: # send result
     arr_img = numpy.array(img_rand)
     comm.send(arr_img, dest=0)
-
-
-  # # Open an image for processing and convert to greyscale
-  # img = Image.open('soup.jpg').convert('L')
-  # img = resizeImage(img)
-  #
-  # # Create random colorized vector like images
-  # img1 = wharolify(img, random.choice(COLORS))
-  # img2 = wharolify(img, random.choice(COLORS))
-  # img3 = wharolify(img, random.choice(COLORS))
-  # img4 = wharolify(img, random.choice(COLORS))
-  #
-  # # Aggregate the four images into one
-  # img = aggregateImages(img1, img2, img3, img4)
-  #
-  # # Save the Warhol Masterpiece!
-  # img.save('warholed.jpg')
