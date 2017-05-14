@@ -1,5 +1,5 @@
 echo $0 MPI running warhol.py $1...
 scp $1 pi0:/home/pi/warhol/ImageProcessing/
-mpiexec -f machfile -n 4 python warhol.py $1
+mpiexec -f machfile -n 4 python warhol.py $1 $2
 echo copying result locally
 scp pi0:/home/pi/warhol/ImageProcessing/output.jpg ./warholed.jpg

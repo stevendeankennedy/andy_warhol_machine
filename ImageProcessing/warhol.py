@@ -110,7 +110,11 @@ def warholify_b(im, colors):
   bits = 2 # I don't know what is better, 1 or 2
   im = ImageOps.posterize(im, bits) # posterize on scale
   im = ImageOps.colorize(im, colors['bg'], colors['fg']) # recolor
+<<<<<<< HEAD
   # im = im.filter(ImageFilter.SMOOTH)
+=======
+  im = im.filter(ImageFilter.SMOOTH)
+>>>>>>> steve
   im = im.filter(ImageFilter.SHARPEN)
   enhancer = ImageEnhance.Contrast(im)
   im = enhancer.enhance(1.5)
@@ -149,8 +153,11 @@ if version == 1:
     img_rand = warholify(img, random.choice(COLORS)) # warhol version 1
 else:
     img_rand = warholify_b(img, random.choice(COLORS)) # warhol version 2
+<<<<<<< HEAD
 img_rand = img_rand.filter(ImageFilter.SMOOTH)
 
+=======
+>>>>>>> steve
 
 # Then time to aggregate the images
 if (rank == 0):
